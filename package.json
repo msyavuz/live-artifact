@@ -1,0 +1,82 @@
+{
+  "name": "live-artifact",
+  "version": "0.2.4",
+  "description": "Virtual filesystem + live Sandpack preview for LLM-generated apps. Pluggable into any chat UI.",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
+  },
+  "keywords": [
+    "llm",
+    "sandpack",
+    "zenfs",
+    "artifact",
+    "ai",
+    "agent"
+  ],
+  "license": "MIT",
+  "author": "Mehmet Salih Yavuz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msyavuz/live-artifact.git"
+  },
+  "bugs": {
+    "url": "https://github.com/msyavuz/live-artifact/issues"
+  },
+  "homepage": "https://github.com/msyavuz/live-artifact#readme",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.12",
+    "@codesandbox/sandpack-react": "^2.20.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@vitest/coverage-v8": "^4.1.4",
+    "@zenfs/core": "^2.5.6",
+    "jsdom": "^29.0.2",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  },
+  "peerDependencies": {
+    "@codesandbox/sandpack-react": "^2.20.0",
+    "@zenfs/core": "^2.5.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@codesandbox/sandpack-react": {
+      "optional": true
+    }
+  }
+}
