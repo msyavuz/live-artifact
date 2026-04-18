@@ -96,11 +96,17 @@ function memoryStore(idPrefix: string): ArtifactStore {
   };
 }
 
+// ZenFS mounts are a global singleton: calling configure() twice on the same
+// mount point throws "already in use". Cache the first configure promise so
+// StrictMode remounts, HMR, and multiple stores in one page all share it.
+let zenfsReady: Promise<void> | null = null;
+
 function zenfsStore(idPrefix: string, config?: ZenFSConfig): ArtifactStore {
   const listeners = new Set<(e: ArtifactEvent) => void>();
   const known = new Set<string>();
 
-  const ready = configure(config ?? { mounts: { "/": InMemory } });
+  zenfsReady ??= configure(config ?? { mounts: { "/": InMemory } });
+  const ready = zenfsReady;
 
   const emit = (e: ArtifactEvent) => {
     for (const l of listeners) l(e);

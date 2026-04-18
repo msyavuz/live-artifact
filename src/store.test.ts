@@ -134,6 +134,20 @@ describe("ZenFS backend — custom config", () => {
     await store.writeFile(id, "App.tsx", "ok");
     expect(await store.readFile(id, "App.tsx")).toBe("ok");
   });
+
+  it("is idempotent when configure() is called twice on the same mount", async () => {
+    const { InMemory } = await import("@zenfs/core");
+    const first = createArtifactStore({
+      backend: "zenfs",
+      zenfs: { mounts: { "/": InMemory } },
+    });
+    await first.ready;
+    const second = createArtifactStore({
+      backend: "zenfs",
+      zenfs: { mounts: { "/": InMemory } },
+    });
+    await expect(second.ready).resolves.toBeUndefined();
+  });
 });
 
 describe("exported tool specs", () => {
