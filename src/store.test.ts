@@ -151,9 +151,14 @@ describe("ZenFS backend — custom config", () => {
 });
 
 describe("exported tool specs", () => {
-  it("exports the two expected tools with JSON-schema input schemas", () => {
+  it("exports the four expected tools with JSON-schema input schemas", () => {
     const names = artifactToolSpecs.map((t) => t.name);
-    expect(names).toEqual(["start_new_app", "write_file"]);
+    expect(names).toEqual([
+      "start_new_app",
+      "list_files",
+      "read_file",
+      "write_file",
+    ]);
 
     for (const tool of artifactToolSpecs) {
       expect(tool.description.length).toBeGreaterThan(0);
@@ -164,6 +169,9 @@ describe("exported tool specs", () => {
     const writeFile = artifactToolSpecs.find((t) => t.name === "write_file");
     expect(writeFile?.inputSchema.required).toContain("path");
     expect(writeFile?.inputSchema.required).toContain("content");
+
+    const readFile = artifactToolSpecs.find((t) => t.name === "read_file");
+    expect(readFile?.inputSchema.required).toContain("path");
   });
 
   it("ships a non-empty default system prompt", () => {

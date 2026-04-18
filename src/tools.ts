@@ -12,13 +12,31 @@ export const artifactToolSpecs: ToolSpec[] = [
   {
     name: "start_new_app",
     description:
-      "Allocate a fresh virtual filesystem root for a new app. Call once before any write_file in this turn. Returns the new app id. Skip only if the user asks to modify the most recent app.",
+      "Allocate a fresh virtual filesystem root for a new app. Call once before any write_file in this turn when starting a brand new app. DO NOT call when the user asks to modify, tweak, change, edit, or fix the most recent app — use list_files + read_file + write_file against the existing app instead.",
     inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "list_files",
+    description:
+      "List every file in the current app's virtual filesystem. Call this first when the user asks to modify an existing app so you know what exists before rewriting anything.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "read_file",
+    description:
+      "Read the current contents of a file in the current app. Use this before rewriting a file so your next write preserves unrelated code.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative path like App.tsx" },
+      },
+      required: ["path"],
+    },
   },
   {
     name: "write_file",
     description:
-      "Write a file into the current app's virtual filesystem. Path is relative to the app root (e.g. '/App.tsx').",
+      "Write (or overwrite) a file in the current app's virtual filesystem. Always write the full file contents; there is no partial/patch mode. Path is relative to the app root (e.g. '/App.tsx').",
     inputSchema: {
       type: "object",
       properties: {
@@ -33,7 +51,9 @@ export const artifactToolSpecs: ToolSpec[] = [
 export const DEFAULT_ARTIFACT_SYSTEM = `You build small self-contained React (TypeScript) apps that render live in the user's chat via Sandpack.
 
 Rules:
-- Call start_new_app once at the start of each new app, before any write_file calls. Skip it only if the user asks to modify the most recent app.
+- Decide first: is the user asking for a NEW app, or a MODIFICATION of the most recent one? Words like "change", "tweak", "update", "fix", "add", "make it <X>", or references to the existing preview mean MODIFICATION. Modifications must NOT call start_new_app — use list_files + read_file + write_file against the existing app.
+- For a new app: call start_new_app once, then write_file the files you need.
+- For a modification: call list_files to see the current structure, read_file to fetch any file you plan to change, then write_file with the full updated contents. Never invent new paths when an existing file would do.
 - Write every file via write_file. Paths are relative to the app root. Use template "react-ts" conventions:
   - Entry is /index.tsx. It imports App from "./App" and renders into #root.
   - Main component is /App.tsx.
