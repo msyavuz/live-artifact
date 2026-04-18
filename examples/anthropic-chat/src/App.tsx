@@ -182,7 +182,7 @@ createRoot(document.getElementById("root")!).render(<App />);
   return (
     <div className="shell">
       <header>
-        <h1>LLM App Forge</h1>
+        <h1>live-artifact · anthropic-chat</h1>
         <button type="button" className="demobtn" onClick={injectDemo}>
           Inject demo
         </button>
