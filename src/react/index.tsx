@@ -112,11 +112,14 @@ function safeJsonParse(input: string): unknown {
 }
 
 const peerCache = new Map<string, Promise<string[]>>();
+const resolvedPeers = new Map<string, string[]>();
 
 /**
  * Fetch the `peerDependencies` of a package from the npm registry. Cached
  * per-package for the session. Returns [] on any error or missing field, so
- * callers don't need to branch on failure.
+ * callers don't need to branch on failure. Resolved results are also stored
+ * in a synchronous cache so subsequent renders can include peers without
+ * waiting on a microtask.
  */
 export async function fetchPeerDependencies(pkg: string): Promise<string[]> {
   const cached = peerCache.get(pkg);
@@ -138,11 +141,27 @@ export async function fetchPeerDependencies(pkg: string): Promise<string[]> {
     }
   })();
   peerCache.set(pkg, promise);
+  promise.then((peers) => {
+    resolvedPeers.set(pkg, peers);
+  });
   return promise;
+}
+
+function mergeKnownPeers(deps: Record<string, string>): Record<string, string> {
+  const merged = { ...deps };
+  for (const pkg of Object.keys(deps)) {
+    const peers = resolvedPeers.get(pkg);
+    if (!peers) continue;
+    for (const peer of peers) {
+      if (!(peer in merged)) merged[peer] = "latest";
+    }
+  }
+  return merged;
 }
 
 export function __resetPeerDependencyCache(): void {
   peerCache.clear();
+  resolvedPeers.clear();
 }
 
 export interface LiveAppProps {
@@ -175,26 +194,21 @@ export function LiveApp({
   customSetup,
 }: LiveAppProps) {
   const directDeps = useMemo(() => extractDependencies(files), [files]);
-  const [enrichedDeps, setEnrichedDeps] = useState<Record<string, string>>(
-    () => directDeps,
-  );
+  const [peerBump, setPeerBump] = useState(0);
+  // peerBump increments after async peer fetches populate the sync cache,
+  // so subsequent renders include those peers.
+  const enrichedDeps = useMemo(() => {
+    void peerBump;
+    return mergeKnownPeers(directDeps);
+  }, [directDeps, peerBump]);
 
   useEffect(() => {
     let cancelled = false;
     const packages = Object.keys(directDeps);
-    if (packages.length === 0) {
-      setEnrichedDeps(directDeps);
-      return;
-    }
-    Promise.all(packages.map(fetchPeerDependencies)).then((peerLists) => {
-      if (cancelled) return;
-      const merged: Record<string, string> = { ...directDeps };
-      for (const peers of peerLists) {
-        for (const peer of peers) {
-          if (!(peer in merged)) merged[peer] = "latest";
-        }
-      }
-      setEnrichedDeps(merged);
+    const missing = packages.filter((pkg) => !resolvedPeers.has(pkg));
+    if (missing.length === 0) return;
+    Promise.all(missing.map(fetchPeerDependencies)).then(() => {
+      if (!cancelled) setPeerBump((n) => n + 1);
     });
     return () => {
       cancelled = true;
