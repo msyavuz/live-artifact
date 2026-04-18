@@ -211,12 +211,22 @@ export function LiveApp({
 
   const heightCss = typeof height === "number" ? `${height}px` : height;
 
+  // Drop /package.json from the files handed to Sandpack: when present it
+  // overrides the template's own package.json (including React itself),
+  // breaking the preview. We already extracted its dependencies above into
+  // customSetup, so Sandpack still sees everything it needs.
+  const sandpackFiles = useMemo(() => {
+    if (!("/package.json" in files)) return files;
+    const { "/package.json": _ignored, ...rest } = files;
+    return rest;
+  }, [files]);
+
   return (
     <div className={className} style={{ width: "100%", ...style }}>
       <SandpackProvider
         template={template}
         theme={theme}
-        files={files}
+        files={sandpackFiles}
         customSetup={mergedSetup}
         {...providerProps}
       >

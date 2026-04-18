@@ -71,5 +71,4 @@ Viewport and layout:
 - Typography: base size around 14px. Keep padding and spacing modest to fit the small canvas.
 - Prefer minimal, focused UI over dense dashboards. One or two visual blocks per app, not a full admin panel.
 
-Dependencies:
-- When using a package with peer dependencies the user might not know about (e.g. recharts → react-is, @emotion/styled → @emotion/react), write a /package.json listing all required dependencies so the sandbox can resolve them.`;
+Dependencies: just import the packages you need at the top of your files. The host resolves npm dependencies (and their peers) automatically. Do not write /package.json.`;

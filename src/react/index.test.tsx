@@ -357,6 +357,20 @@ export default () => null;`,
     });
   });
 
+  it("strips /package.json from the files handed to Sandpack", () => {
+    const files = {
+      "/App.tsx": `import { z } from "zod";`,
+      "/package.json": JSON.stringify({ dependencies: { zod: "latest" } }),
+    };
+    const { container } = render(<LiveApp files={files} />);
+    const p = providerProps(container) as {
+      files?: Record<string, unknown>;
+      customSetup?: { dependencies?: Record<string, string> };
+    };
+    expect(p.files).toEqual({ "/App.tsx": files["/App.tsx"] });
+    expect(p.customSetup?.dependencies).toEqual({ zod: "latest" });
+  });
+
   it("does not update state if the component unmounts before peers resolve", async () => {
     let resolveFetch!: (v: {
       ok: boolean;
