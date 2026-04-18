@@ -19,12 +19,9 @@ export interface ArtifactStore {
 export type ZenFSConfig = Parameters<typeof configure>[0];
 
 export interface CreateStoreOptions {
-  /** Which filesystem backend drives the store. Defaults to "zenfs" (in-memory). */
-  backend?: "zenfs" | "memory";
   /**
-   * Optional ZenFS mount configuration. Forwarded directly to ZenFS's
-   * `configure()`. Use this to plug in IndexedDB, OPFS, OverlayFS, or any other
-   * ZenFS backend. Ignored when `backend === "memory"`.
+   * ZenFS mount configuration, forwarded directly to ZenFS's `configure()`.
+   * Plug in IndexedDB, OPFS, OverlayFS, or any other ZenFS backend here.
    *
    * Defaults to `{ mounts: { "/": InMemory } }`.
    */
@@ -33,79 +30,19 @@ export interface CreateStoreOptions {
   idPrefix?: string;
 }
 
-export function createArtifactStore(
-  opts: CreateStoreOptions = {},
-): ArtifactStore {
-  const backend = opts.backend ?? "zenfs";
-  const idPrefix = opts.idPrefix ?? "app";
-
-  if (backend === "memory") return memoryStore(idPrefix);
-  return zenfsStore(idPrefix, opts.zenfs);
-}
-
-function newId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-}
-
-function normalize(rel: string): string {
-  return rel.replace(/^\/+/, "");
-}
-
-function memoryStore(idPrefix: string): ArtifactStore {
-  const apps = new Map<string, FilesMap>();
-  const listeners = new Set<(e: ArtifactEvent) => void>();
-
-  const emit = (e: ArtifactEvent) => {
-    for (const l of listeners) l(e);
-  };
-
-  return {
-    ready: Promise.resolve(),
-    createApp() {
-      const id = newId(idPrefix);
-      apps.set(id, {});
-      emit({ type: "app_created", appId: id });
-      return id;
-    },
-    hasApp(appId) {
-      return apps.has(appId);
-    },
-    async writeFile(appId, path, content) {
-      const rel = normalize(path);
-      let files = apps.get(appId);
-      if (!files) {
-        files = {};
-        apps.set(appId, files);
-      }
-      files[`/${rel}`] = content;
-      emit({ type: "file_written", appId, path: rel, content });
-    },
-    async readFile(appId, path) {
-      const rel = normalize(path);
-      const v = apps.get(appId)?.[`/${rel}`];
-      if (v === undefined) throw new Error(`ENOENT: ${appId}/${rel}`);
-      return v;
-    },
-    async getFiles(appId) {
-      return { ...(apps.get(appId) ?? {}) };
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-  };
-}
-
 // ZenFS mounts are a global singleton: calling configure() twice on the same
 // mount point throws "already in use". Cache the first configure promise so
 // StrictMode remounts, HMR, and multiple stores in one page all share it.
 let zenfsReady: Promise<void> | null = null;
 
-function zenfsStore(idPrefix: string, config?: ZenFSConfig): ArtifactStore {
+export function createArtifactStore(
+  opts: CreateStoreOptions = {},
+): ArtifactStore {
+  const idPrefix = opts.idPrefix ?? "app";
   const listeners = new Set<(e: ArtifactEvent) => void>();
   const known = new Set<string>();
 
-  zenfsReady ??= configure(config ?? { mounts: { "/": InMemory } });
+  zenfsReady ??= configure(opts.zenfs ?? { mounts: { "/": InMemory } });
   const ready = zenfsReady;
 
   const emit = (e: ArtifactEvent) => {
@@ -167,4 +104,12 @@ function zenfsStore(idPrefix: string, config?: ZenFSConfig): ArtifactStore {
       return () => listeners.delete(listener);
     },
   };
+}
+
+function newId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function normalize(rel: string): string {
+  return rel.replace(/^\/+/, "");
 }

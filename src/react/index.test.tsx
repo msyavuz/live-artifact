@@ -63,13 +63,13 @@ afterEach(() => {
 
 describe("useAppFiles", () => {
   it("returns an empty map when appId is null", () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const { result } = renderHook(() => useAppFiles(store, null));
     expect(result.current).toEqual({});
   });
 
   it("hydrates from existing files for the given appId", async () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const id = store.createApp();
     await store.writeFile(id, "App.tsx", "hello");
 
@@ -81,7 +81,7 @@ describe("useAppFiles", () => {
   });
 
   it("updates live as files are written", async () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const id = store.createApp();
 
     const { result } = renderHook(() => useAppFiles(store, id));
@@ -105,7 +105,7 @@ describe("useAppFiles", () => {
   });
 
   it("ignores events for other appIds", async () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const a = store.createApp();
     const b = store.createApp();
 
@@ -120,7 +120,7 @@ describe("useAppFiles", () => {
   });
 
   it("resets when the appId prop changes", async () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const a = store.createApp();
     const b = store.createApp();
     await store.writeFile(a, "A.tsx", "a");
@@ -140,7 +140,7 @@ describe("useAppFiles", () => {
   });
 
   it("unsubscribes on unmount", async () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const id = store.createApp();
 
     const { result, unmount } = renderHook(() => useAppFiles(store, id));
@@ -152,7 +152,7 @@ describe("useAppFiles", () => {
   });
 
   it("handles getFiles resolving after unmount without error", async () => {
-    const store = createArtifactStore({ backend: "memory" });
+    const store = createArtifactStore();
     const id = store.createApp();
     let resolve!: (v: Record<string, string>) => void;
     const pending = new Promise<Record<string, string>>((r) => {

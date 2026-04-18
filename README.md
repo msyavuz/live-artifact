@@ -73,14 +73,12 @@ Feed `artifactToolSpecs` to your LLM and use `DEFAULT_ARTIFACT_SYSTEM` as the sy
 
 ```ts
 createArtifactStore({
-  backend?: "zenfs" | "memory",
   zenfs?: ZenFSConfig,
   idPrefix?: string,
 }): ArtifactStore
 ```
 
-- `backend: "zenfs"` (default) — filesystem powered by [@zenfs/core](https://github.com/zen-fs/core). Defaults to the in-memory `InMemory` backend; override with `zenfs` to plug in any ZenFS backend (IndexedDB, OPFS, OverlayFS, etc.). See [Backends](#backends).
-- `backend: "memory"` — plain `Map<string, string>`. Good for tests. Ignores `zenfs`.
+Filesystem is always powered by [@zenfs/core](https://github.com/zen-fs/core). Defaults to its in-memory mount; pass `zenfs` to plug any ZenFS backend (IndexedDB, OPFS, OverlayFS, etc.) — see [Backends](#backends). `idPrefix` customizes generated app ids (default `"app"`).
 
 Returns:
 
@@ -141,7 +139,7 @@ System prompt that explains the tools, the viewport (~480px tall, ~600-800px wid
 
 ## Backends
 
-The default `"zenfs"` backend uses ZenFS's `InMemory`, so files vanish on reload. Any ZenFS backend works — install the relevant companion package and pass the same mount config you'd hand to ZenFS's `configure()`.
+By default files live in ZenFS's `InMemory` mount and vanish on reload. Any ZenFS backend works — install the relevant companion package and pass the same mount config you'd hand to ZenFS's `configure()`.
 
 ### Persist across reloads with IndexedDB
 
@@ -182,14 +180,6 @@ const store = createArtifactStore({
 ```
 
 The store always works under `/apps/<id>/`, so mount a persistent backend at `/` (or at `/apps`) if you want artifacts to survive reloads.
-
-### In-process, no ZenFS
-
-Use `backend: "memory"` for unit tests or environments where you don't want to pull ZenFS in.
-
-```ts
-const store = createArtifactStore({ backend: "memory" });
-```
 
 ## Why pluggable?
 

@@ -2,17 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ArtifactEvent, createArtifactStore } from "./store";
 import { artifactToolSpecs, DEFAULT_ARTIFACT_SYSTEM } from "./tools";
 
-describe.each([
-  ["memory" as const, "memory"],
-  ["zenfs" as const, "zenfs (default)"],
-  [undefined, "zenfs (implicit default)"],
-])("ArtifactStore — %s backend", (backend, _label) => {
-  function makeStore(opts: Parameters<typeof createArtifactStore>[0] = {}) {
-    return createArtifactStore({ ...opts, backend });
-  }
-
+describe("ArtifactStore", () => {
   it("creates apps with unique ids and tracks them via hasApp", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
     const a = store.createApp();
     const b = store.createApp();
@@ -23,7 +15,7 @@ describe.each([
   });
 
   it("round-trips writeFile / readFile / getFiles", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
     const id = store.createApp();
 
@@ -42,7 +34,7 @@ describe.each([
   });
 
   it("writeFile creates nested directories", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
     const id = store.createApp();
 
@@ -64,7 +56,7 @@ describe.each([
   });
 
   it("writeFile auto-tracks apps even without an explicit createApp call", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
 
     await store.writeFile("adhoc-id", "App.tsx", "x");
@@ -74,20 +66,20 @@ describe.each([
   });
 
   it("getFiles on an unknown app returns an empty map", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
     expect(await store.getFiles("never-existed")).toEqual({});
   });
 
   it("read of missing file rejects", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
     const id = store.createApp();
     await expect(store.readFile(id, "missing.ts")).rejects.toThrow();
   });
 
   it("subscribe receives app_created and file_written events", async () => {
-    const store = makeStore();
+    const store = createArtifactStore();
     await store.ready;
     const listener = vi.fn<(e: ArtifactEvent) => void>();
     const unsubscribe = store.subscribe(listener);
@@ -109,24 +101,23 @@ describe.each([
   });
 
   it("custom idPrefix is applied", async () => {
-    const store = makeStore({ idPrefix: "art" });
+    const store = createArtifactStore({ idPrefix: "art" });
     await store.ready;
     const id = store.createApp();
     expect(id.startsWith("art-")).toBe(true);
   });
 });
 
-describe("ZenFS backend — custom config", () => {
+describe("ZenFS configuration", () => {
   afterEach(async () => {
     // Reset the singleton ZenFS mount for subsequent tests.
     const { configure, InMemory } = await import("@zenfs/core");
     await configure({ mounts: { "/": InMemory } });
   });
 
-  it("forwards the zenfs option to configure()", async () => {
+  it("forwards a custom zenfs mount config to configure()", async () => {
     const { InMemory } = await import("@zenfs/core");
     const store = createArtifactStore({
-      backend: "zenfs",
       zenfs: { mounts: { "/": InMemory } },
     });
     await store.ready;
@@ -138,12 +129,10 @@ describe("ZenFS backend — custom config", () => {
   it("is idempotent when configure() is called twice on the same mount", async () => {
     const { InMemory } = await import("@zenfs/core");
     const first = createArtifactStore({
-      backend: "zenfs",
       zenfs: { mounts: { "/": InMemory } },
     });
     await first.ready;
     const second = createArtifactStore({
-      backend: "zenfs",
       zenfs: { mounts: { "/": InMemory } },
     });
     await expect(second.ready).resolves.toBeUndefined();
