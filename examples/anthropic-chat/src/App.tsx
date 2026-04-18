@@ -40,8 +40,32 @@ export default function App() {
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight });
-  }, [messages]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    const atBottom = () =>
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    let stickToBottom = true;
+    const onScroll = () => {
+      stickToBottom = atBottom();
+    };
+    el.addEventListener("scroll", onScroll);
+    const pin = () => {
+      if (stickToBottom) el.scrollTo({ top: el.scrollHeight });
+    };
+    const observer = new ResizeObserver(pin);
+    observer.observe(el);
+    for (const child of Array.from(el.children)) observer.observe(child);
+    const mutation = new MutationObserver(() => {
+      for (const child of Array.from(el.children)) observer.observe(child);
+      pin();
+    });
+    mutation.observe(el, { childList: true, subtree: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+      mutation.disconnect();
+    };
+  }, []);
 
   async function send() {
     const text = input.trim();
