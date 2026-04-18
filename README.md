@@ -174,6 +174,10 @@ Generated code runs inside Sandpack's iframe. Treat it as untrusted. If the arti
 
 If you're calling an LLM API directly from the browser, do not ship real production keys — proxy through your backend.
 
+## Example
+
+A runnable chat UI wired to the Anthropic SDK lives at [`examples/anthropic-chat/`](./examples/anthropic-chat). It demonstrates the full tool-dispatch + `useAppFiles` + `<LiveApp>` flow end-to-end and includes an "Inject demo" button so you can verify rendering without an API key.
+
 ## License
 
 MIT © Mehmet Salih Yavuz
