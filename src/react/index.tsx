@@ -194,27 +194,37 @@ export function LiveApp({
   customSetup,
 }: LiveAppProps) {
   const directDeps = useMemo(() => extractDependencies(files), [files]);
-  const [peerBump, setPeerBump] = useState(0);
-  // peerBump increments after async peer fetches populate the sync cache,
-  // so subsequent renders include those peers.
-  const enrichedDeps = useMemo(() => {
-    void peerBump;
-    return mergeKnownPeers(directDeps);
-  }, [directDeps, peerBump]);
+
+  // Sandpack installs dependencies on mount and does not reliably re-install
+  // them when customSetup.dependencies changes afterwards. So we block the
+  // preview behind a loading state until every package's peers have been
+  // resolved (via the sync cache). This guarantees Sandpack mounts once with
+  // the correct full dep tree.
+  const [peersReady, setPeersReady] = useState(() =>
+    Object.keys(directDeps).every((pkg) => resolvedPeers.has(pkg)),
+  );
 
   useEffect(() => {
     let cancelled = false;
     const packages = Object.keys(directDeps);
     const missing = packages.filter((pkg) => !resolvedPeers.has(pkg));
-    if (missing.length === 0) return;
+    if (missing.length === 0) {
+      setPeersReady(true);
+      return;
+    }
+    setPeersReady(false);
     Promise.all(missing.map(fetchPeerDependencies)).then(() => {
-      if (!cancelled) setPeerBump((n) => n + 1);
+      if (!cancelled) setPeersReady(true);
     });
     return () => {
       cancelled = true;
     };
   }, [directDeps]);
 
+  // Not memoized: directDeps reference is stable across renders when files
+  // haven't changed, but the sync peer cache may have filled in since last
+  // render, and we want those peers picked up on the very next mount.
+  const enrichedDeps = mergeKnownPeers(directDeps);
   const mergedSetup: SandpackProviderProps["customSetup"] = {
     ...customSetup,
     dependencies: {
@@ -237,22 +247,39 @@ export function LiveApp({
 
   return (
     <div className={className} style={{ width: "100%", ...style }}>
-      <SandpackProvider
-        template={template}
-        theme={theme}
-        files={sandpackFiles}
-        customSetup={mergedSetup}
-        {...providerProps}
-      >
-        <SandpackLayout style={{ height: heightCss, border: "none" }}>
-          <SandpackPreview
-            showOpenInCodeSandbox={false}
-            showRefreshButton
-            style={{ height: heightCss, flex: 1 }}
-            {...previewProps}
-          />
-        </SandpackLayout>
-      </SandpackProvider>
+      {peersReady ? (
+        <SandpackProvider
+          template={template}
+          theme={theme}
+          files={sandpackFiles}
+          customSetup={mergedSetup}
+          {...providerProps}
+        >
+          <SandpackLayout style={{ height: heightCss, border: "none" }}>
+            <SandpackPreview
+              showOpenInCodeSandbox={false}
+              showRefreshButton
+              style={{ height: heightCss, flex: 1 }}
+              {...previewProps}
+            />
+          </SandpackLayout>
+        </SandpackProvider>
+      ) : (
+        <div
+          data-testid="live-artifact-loading"
+          style={{
+            height: heightCss,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#9ca3af",
+            fontSize: 13,
+            fontFamily: "system-ui, sans-serif",
+          }}
+        >
+          Resolving dependencies…
+        </div>
+      )}
     </div>
   );
 }

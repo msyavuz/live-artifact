@@ -251,7 +251,7 @@ describe("LiveApp", () => {
     expect(previewProps(container).showRefreshButton).toBe(false);
   });
 
-  it("auto-declares npm dependencies based on imports in files", () => {
+  it("auto-declares npm dependencies based on imports in files", async () => {
     const files = {
       "/App.tsx": `import React from "react";
 import { z } from "zod";
@@ -260,10 +260,12 @@ export default () => null;`,
       "/styles.css": "body {}",
     };
     const { container } = render(<LiveApp files={files} />);
-    const p = providerProps(container) as {
-      customSetup?: { dependencies?: Record<string, string> };
-    };
-    expect(p.customSetup?.dependencies).toEqual({ zod: "latest" });
+    await waitFor(() => {
+      const p = providerProps(container) as {
+        customSetup?: { dependencies?: Record<string, string> };
+      };
+      expect(p.customSetup?.dependencies).toEqual({ zod: "latest" });
+    });
   });
 
   it("enriches deps with peers fetched from the npm registry", async () => {
@@ -312,7 +314,7 @@ export default () => null;`,
     });
   });
 
-  it("respects user-supplied dependency overrides", () => {
+  it("respects user-supplied dependency overrides", async () => {
     const files = { "/App.tsx": `import { LineChart } from "recharts";` };
     const { container } = render(
       <LiveApp
@@ -320,10 +322,12 @@ export default () => null;`,
         customSetup={{ dependencies: { recharts: "2.13.0" } }}
       />,
     );
-    const p = providerProps(container) as {
-      customSetup?: { dependencies?: Record<string, string> };
-    };
-    expect(p.customSetup?.dependencies?.recharts).toBe("2.13.0");
+    await waitFor(() => {
+      const p = providerProps(container) as {
+        customSetup?: { dependencies?: Record<string, string> };
+      };
+      expect(p.customSetup?.dependencies?.recharts).toBe("2.13.0");
+    });
   });
 
   it("skips dep fetching when there are no imports", () => {
@@ -331,6 +335,47 @@ export default () => null;`,
     vi.stubGlobal("fetch", fetchFn);
     render(<LiveApp files={{ "/App.tsx": "export default () => null;" }} />);
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("shows a loading state while peers are being resolved, then mounts Sandpack", async () => {
+    let resolveFetch!: (v: {
+      ok: boolean;
+      json: () => Promise<unknown>;
+    }) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<{ ok: boolean; json: () => Promise<unknown> }>((r) => {
+            resolveFetch = r;
+          }),
+      ),
+    );
+
+    const files = { "/App.tsx": `import { z } from "zod";` };
+    const { container } = render(<LiveApp files={files} />);
+
+    // Initial render: peers not yet resolved, preview is loading.
+    expect(
+      container.querySelector('[data-testid="live-artifact-loading"]'),
+    ).toBeTruthy();
+    expect(container.querySelector('[data-testid="provider"]')).toBeNull();
+
+    resolveFetch({ ok: true, json: async () => ({}) });
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="provider"]')).toBeTruthy();
+    });
+  });
+
+  it("mounts Sandpack immediately when there are no imports (no peers to wait for)", () => {
+    const { container } = render(
+      <LiveApp files={{ "/App.tsx": "export default () => null;" }} />,
+    );
+    expect(container.querySelector('[data-testid="provider"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="live-artifact-loading"]'),
+    ).toBeNull();
   });
 
   it("does not overwrite a direct dep when it also appears as a peer", async () => {
@@ -357,18 +402,20 @@ export default () => null;`,
     });
   });
 
-  it("strips /package.json from the files handed to Sandpack", () => {
+  it("strips /package.json from the files handed to Sandpack", async () => {
     const files = {
       "/App.tsx": `import { z } from "zod";`,
       "/package.json": JSON.stringify({ dependencies: { zod: "latest" } }),
     };
     const { container } = render(<LiveApp files={files} />);
-    const p = providerProps(container) as {
-      files?: Record<string, unknown>;
-      customSetup?: { dependencies?: Record<string, string> };
-    };
-    expect(p.files).toEqual({ "/App.tsx": files["/App.tsx"] });
-    expect(p.customSetup?.dependencies).toEqual({ zod: "latest" });
+    await waitFor(() => {
+      const p = providerProps(container) as {
+        files?: Record<string, unknown>;
+        customSetup?: { dependencies?: Record<string, string> };
+      };
+      expect(p.files).toEqual({ "/App.tsx": files["/App.tsx"] });
+      expect(p.customSetup?.dependencies).toEqual({ zod: "latest" });
+    });
   });
 
   it("does not update state if the component unmounts before peers resolve", async () => {
