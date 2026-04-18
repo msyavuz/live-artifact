@@ -348,6 +348,33 @@ async function runTurn(args: {
         activeAppId = args.store.createApp();
         args.onStartApp(activeAppId);
         resultContent = `Started app ${activeAppId}`;
+      } else if (block.name === "list_files") {
+        if (!activeAppId) {
+          resultContent = "No active app. Call start_new_app first.";
+          isError = true;
+        } else {
+          const files = await args.store.getFiles(activeAppId);
+          const paths = Object.keys(files);
+          resultContent = paths.length
+            ? paths.join("\n")
+            : "(no files written yet)";
+        }
+      } else if (block.name === "read_file") {
+        const path = String(input.path ?? "");
+        if (!activeAppId) {
+          resultContent = "No active app. Call start_new_app first.";
+          isError = true;
+        } else if (!path) {
+          resultContent = "Missing path";
+          isError = true;
+        } else {
+          try {
+            resultContent = await args.store.readFile(activeAppId, path);
+          } catch (err) {
+            resultContent = (err as Error).message;
+            isError = true;
+          }
+        }
       } else if (block.name === "write_file") {
         if (!activeAppId) {
           resultContent = "No active app. Call start_new_app first.";
@@ -397,6 +424,8 @@ function summarizeTool(
   result: string,
 ): string {
   if (name === "write_file") return `write_file ${input.path ?? "?"}`;
+  if (name === "read_file") return `read_file ${input.path ?? "?"}`;
+  if (name === "list_files") return `list_files`;
   if (name === "start_new_app") return `start_new_app → ${result}`;
   return name;
 }
