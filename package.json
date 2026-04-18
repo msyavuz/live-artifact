@@ -1,6 +1,6 @@
 {
   "name": "live-artifact",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Virtual filesystem + live Sandpack preview for LLM-generated apps. Pluggable into any chat UI.",
   "type": "module",
   "sideEffects": false,

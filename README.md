@@ -8,8 +8,8 @@ A tiny toolkit for rendering LLM-generated React apps live inside a chat UI. You
 
 - `ArtifactStore` — virtual, per-app filesystem with a subscribe API.
 - `useAppFiles(store, appId)` — React hook, returns the app's files as a `FilesMap` and updates live.
-- `<LiveApp files />` — Sandpack-backed preview component.
-- `artifactToolSpecs` + `DEFAULT_ARTIFACT_SYSTEM` — optional JSON-schema tool specs and system prompt you can feed into whatever LLM you use.
+- `<LiveApp files />` — Sandpack-backed preview. Auto-declares npm dependencies from imports, fetches peer deps from the registry, waits for them before mounting so the first bundle is correct.
+- `artifactToolSpecs` + `DEFAULT_ARTIFACT_SYSTEM` — JSON-schema tool specs (`start_new_app`, `list_files`, `read_file`, `write_file`) and a ready-to-use system prompt.
 
 ## What it isn't
 
@@ -24,7 +24,6 @@ npm install live-artifact @codesandbox/sandpack-react @zenfs/core react react-do
 ## Quickstart
 
 ```tsx
-import { useState } from "react";
 import {
   createArtifactStore,
   artifactToolSpecs,
@@ -40,10 +39,23 @@ export function ChatMessage({ appId }: { appId: string | null }) {
 }
 
 // Inside your own LLM loop:
-async function dispatchToolCall(name: string, input: any, currentAppId: string | null) {
+async function dispatchToolCall(
+  name: string,
+  input: any,
+  currentAppId: string | null,
+) {
   if (name === "start_new_app") {
     const id = store.createApp();
     return { appId: id, result: `Started ${id}` };
+  }
+  if (name === "list_files") {
+    if (!currentAppId) return { result: "No active app", isError: true };
+    const files = await store.getFiles(currentAppId);
+    return { result: Object.keys(files).join("\n") };
+  }
+  if (name === "read_file") {
+    if (!currentAppId) return { result: "No active app", isError: true };
+    return { result: await store.readFile(currentAppId, input.path) };
   }
   if (name === "write_file") {
     if (!currentAppId) return { result: "No active app", isError: true };
@@ -53,7 +65,7 @@ async function dispatchToolCall(name: string, input: any, currentAppId: string |
 }
 ```
 
-Feed `artifactToolSpecs` to your LLM (it contains `start_new_app` and `write_file`) and use `DEFAULT_ARTIFACT_SYSTEM` as the system prompt, or roll your own.
+Feed `artifactToolSpecs` to your LLM and use `DEFAULT_ARTIFACT_SYSTEM` as the system prompt, or roll your own.
 
 ## API
 
@@ -86,25 +98,46 @@ interface ArtifactStore {
 
 ### `useAppFiles(store, appId)`
 
-React hook. Subscribes to the store and returns a `FilesMap` (`Record<string, string>`) keyed by `/`-prefixed paths. Updates as files are written.
+React hook. Subscribes to the store and returns a `FilesMap` (`Record<string, string>`) keyed by `/`-prefixed paths. Updates as files are written. Pass `null` to disable.
 
 ### `<LiveApp files />`
 
-Sandpack wrapper. Props:
+Sandpack wrapper with automatic dependency resolution. Props:
 
 - `files: FilesMap` (required)
-- `template?: SandpackTemplate` (default `"react-ts"`)
-- `theme?: SandpackTheme` (default `"dark"`)
-- `height?: number` (default `360`)
-- `options?: SandpackOptions`
+- `template?: SandpackPredefinedTemplate` — default `"react-ts"`
+- `theme?: SandpackThemeProp` — default `"dark"`
+- `height?: number | string` — default `480`. Numbers are treated as pixels; strings pass through (`"100%"`, `"50vh"`, etc.).
+- `className?: string` — applied to the outer wrapper div
+- `style?: CSSProperties` — applied to the outer wrapper div
+- `providerProps?: Partial<SandpackProviderProps>` — forwarded to `SandpackProvider` (e.g. `options`)
+- `previewProps?: Partial<SandpackPreviewProps>` — forwarded to `SandpackPreview` (e.g. `showRefreshButton`)
+- `customSetup?: SandpackProviderProps["customSetup"]` — caller-provided deps take priority over auto-resolved ones
+
+**Dependency resolution**: `<LiveApp>` scans imports in the files map and builds a Sandpack dep list. For each new package it hits `https://registry.npmjs.org/<pkg>/latest` to find peer dependencies (cached per session), then waits to mount `SandpackProvider` until the full tree is known. You see a brief `Resolving dependencies…` state on the first novel package; after that, hits are instant. If the files map includes `/package.json` with a `dependencies` field, that wins over import-scanning, and `/package.json` is stripped from what's passed to Sandpack so the template's React stays intact.
+
+**Hiding the CodeSandbox button**: done by default via `showOpenInCodeSandbox: false`.
+
+### `extractDependencies(files)` and `fetchPeerDependencies(pkg)`
+
+Exposed for advanced cases (custom preview layers). `extractDependencies` reads a files map and returns `{ pkg: "latest" }` for direct imports, preferring `/package.json` when present. `fetchPeerDependencies` returns `peerDependencies` keys from the npm registry, with react builtins filtered out.
 
 ### `artifactToolSpecs`
 
-Array of JSON-schema tool specs (`name`, `description`, `inputSchema`). Provider-agnostic; map the shape into your SDK of choice.
+Array of provider-agnostic tool specs:
+
+| name | purpose |
+|---|---|
+| `start_new_app` | Create a new virtual FS root. Call only for brand-new apps. |
+| `list_files` | List files in the current app (used before modifying). |
+| `read_file` | Read a file's current contents (used before rewriting). |
+| `write_file` | Overwrite a file with full new contents. |
+
+Each has `name`, `description`, `inputSchema`. Map the shape into your SDK of choice (Anthropic, OpenAI function calls, Gemini tool use, etc.).
 
 ### `DEFAULT_ARTIFACT_SYSTEM`
 
-A ready-to-use system prompt that instructs the model to use the two tools and target Sandpack's `react-ts` template layout. Override freely.
+System prompt that explains the tools, the viewport (~480px tall, ~600-800px wide), responsive layout requirements (ResponsiveContainer for recharts, percentage widths, no hardcoded px), and — importantly — how to tell apart a "new app" request from a "modify the existing app" request so the LLM doesn't call `start_new_app` every turn. Override freely.
 
 ## Backends
 
@@ -166,7 +199,7 @@ Your chat UI already owns:
 - Streaming, retries, token accounting, auth.
 - The tool-call dispatcher.
 
-`live-artifact` doesn't fight that. It hands you a store to dispatch `write_file` into and a component to render the result.
+`live-artifact` doesn't fight that. It hands you a store to dispatch tool calls into and a component to render the result.
 
 ## Security
 
@@ -176,7 +209,7 @@ If you're calling an LLM API directly from the browser, do not ship real product
 
 ## Example
 
-A runnable chat UI wired to the Anthropic SDK lives at [`examples/anthropic-chat/`](./examples/anthropic-chat). It demonstrates the full tool-dispatch + `useAppFiles` + `<LiveApp>` flow end-to-end and includes an "Inject demo" button so you can verify rendering without an API key.
+A runnable chat UI wired to the Anthropic SDK lives at [`examples/anthropic-chat/`](./examples/anthropic-chat). It demonstrates the full tool-dispatch + `useAppFiles` + `<LiveApp>` flow end-to-end, including the "only the latest message renders the preview" pattern for chat UIs where artifacts evolve across turns. Includes an "Inject demo" button so you can verify rendering without an API key.
 
 ## License
 
