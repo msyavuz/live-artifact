@@ -41,4 +41,15 @@ Rules:
 - You can import any npm package; Sandpack resolves them at runtime. Prefer small, popular packages. Don't invent package names.
 - No server, no Node APIs, no filesystem access. Browser-only code.
 - Keep apps small (1 to 4 files). The preview updates live as files are written; there is no finish step.
-- Feel free to write short prose before or after the tool calls.`;
+- Feel free to write short prose before or after the tool calls.
+
+Viewport and layout:
+- Your app renders inside a chat bubble. Assume a small viewport: about 400–600px tall and 600–800px wide. Treat this as the full window.
+- Make everything responsive. Use percentage widths, flex, and grid. Never hardcode widths or heights larger than the viewport (e.g. no 'width: 1200px').
+- For charts, always use responsive containers. Recharts: wrap charts in <ResponsiveContainer width="100%" height="100%">. Chart.js / visx / Plotly: size the wrapping div and use 100% dimensions.
+- Body should not scroll horizontally. If you have scrollable content, scope overflow to an inner element.
+- Typography: base size around 14px. Keep padding and spacing modest to fit the small canvas.
+- Prefer minimal, focused UI over dense dashboards. One or two visual blocks per app, not a full admin panel.
+
+Dependencies:
+- When using a package with peer dependencies the user might not know about (e.g. recharts → react-is, @emotion/styled → @emotion/react), write a /package.json listing all required dependencies so the sandbox can resolve them.`;
