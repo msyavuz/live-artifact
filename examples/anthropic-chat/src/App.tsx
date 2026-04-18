@@ -227,9 +227,19 @@ createRoot(document.getElementById("root")!).render(<App />);
             fake sales data".
           </div>
         )}
-        {messages.map((m) => (
-          <MessageRow key={m.id} message={m} store={store} />
-        ))}
+        {messages.map((m, i) => {
+          const isLatestForApp =
+            !!m.appId &&
+            !messages.slice(i + 1).some((later) => later.appId === m.appId);
+          return (
+            <MessageRow
+              key={m.id}
+              message={m}
+              store={store}
+              showPreview={isLatestForApp}
+            />
+          );
+        })}
       </div>
 
       <form
@@ -265,11 +275,13 @@ createRoot(document.getElementById("root")!).render(<App />);
 function MessageRow({
   message,
   store,
+  showPreview,
 }: {
   message: UiMessage;
   store: ArtifactStore;
+  showPreview: boolean;
 }) {
-  const files = useAppFiles(store, message.appId ?? null);
+  const files = useAppFiles(store, showPreview ? (message.appId ?? null) : null);
   const hasFiles = Object.keys(files).length > 0;
   return (
     <div className={`msg ${message.role}`}>
@@ -285,10 +297,13 @@ function MessageRow({
         </ul>
       )}
       {message.error && <div className="err">Error: {message.error}</div>}
-      {hasFiles && (
+      {showPreview && hasFiles && (
         <div className="preview">
           <LiveApp files={files} />
         </div>
+      )}
+      {!showPreview && message.appId && (
+        <div className="preview-note">Edited further below.</div>
       )}
     </div>
   );

@@ -96,6 +96,12 @@ header h1 { font-size: 16px; margin: 0; font-weight: 600; flex: 1; }
   background: white;
   overflow: hidden;
 }
+.preview-note {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+  padding: 4px 0;
+}
 
 .composer {
   display: flex;
