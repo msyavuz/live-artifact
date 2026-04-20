@@ -1,0 +1,39 @@
+---
+title: live-artifact
+description: Virtual filesystem + live Sandpack preview for LLM-generated React apps.
+template: splash
+hero:
+  tagline: A tiny toolkit for rendering LLM-generated React apps live inside a chat UI. You bring the LLM and the chat — live-artifact brings the virtual filesystem and the preview.
+  actions:
+    - text: Get started
+      link: /quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/msyavuz/live-artifact
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid>
+  <Card title="ArtifactStore" icon="document">
+    Virtual, per-app filesystem powered by ZenFS with a subscribe API.
+  </Card>
+  <Card title="useAppFiles" icon="seti:react">
+    React hook returning a live `FilesMap` for any app id.
+  </Card>
+  <Card title="<LiveApp />" icon="rocket">
+    Sandpack-backed preview that auto-resolves npm dependencies before mounting.
+  </Card>
+  <Card title="Tool specs" icon="puzzle">
+    Provider-agnostic JSON schema tools and a default system prompt.
+  </Card>
+</CardGrid>
+
+## What it isn't
+
+No LLM client. No provider adapters. No agent loop. Wire it into the tool-call dispatcher of your existing chat UI.
+
+> **Status:** pre-1.0 alpha. API may change.
