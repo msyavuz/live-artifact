@@ -1,5 +1,5 @@
-import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import { defineConfig } from "astro/config";
 import starlightRosePine from "starlight-theme-rose-pine";
 
 export default defineConfig({
@@ -19,8 +19,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl:
-          "https://github.com/msyavuz/live-artifact/edit/main/docs/",
+        baseUrl: "https://github.com/msyavuz/live-artifact/edit/main/docs/",
       },
       sidebar: [
         {
